@@ -5,6 +5,8 @@ import com.exalate.api.exception.IssueTrackerException
 import com.exalate.basic.domain.hubobject.v1.BasicHubIssue
 
 public class MajidTest{
+  public MajidTest(BasicHubIssue issue, BasicHubIssue replica){
+  }
   public def mySync(BasicHubIssue issue, BasicHubIssue replica){
     replica.key            = issue.key
     replica.type           = issue.type
