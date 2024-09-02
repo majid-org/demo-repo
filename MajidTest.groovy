@@ -1,5 +1,5 @@
 public class MajidTest{
-  public void mySync(){
+  static def mySync(){
     replica.key            = issue.key
     replica.type           = issue.type
     replica.assignee       = issue.assignee
