@@ -1,3 +1,5 @@
+import com.exalate.basic.domain.hubobject.v1.BasicHubIssue
+
 public class MajidTest{
   public def mySync(BasicHubIssue issue, BasicHubIssue replica){
     replica.key            = issue.key
