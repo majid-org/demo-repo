@@ -1,4 +1,4 @@
-class MajidTest{
+public class MajidTest{
   public void mySync(){
     replica.key            = issue.key
     replica.type           = issue.type
