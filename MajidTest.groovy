@@ -1,7 +1,3 @@
-import com.exalate.api.domain.IIssueKey
-import com.exalate.api.domain.connection.IConnection
-import com.exalate.api.domain.hubobject.v1_2.IHubProject
-import com.exalate.api.exception.IssueTrackerException
 import com.exalate.basic.domain.hubobject.v1.BasicHubIssue
 
 public class MajidTest{
