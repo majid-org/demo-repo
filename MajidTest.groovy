@@ -18,5 +18,6 @@ public class MajidTest{
     replica.priority       = issue.priority
     replica.attachments    = issue.attachments
     replica.project        = issue.project
+    replica.customFields."Mood" = issue.customFields."Mood"
   }
 }
