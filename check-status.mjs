@@ -41,8 +41,6 @@ const query = `
           }
         }
       }
-    }
-  }
 `;
 
 const statusPath = "status-tracking/issue-status.json";
