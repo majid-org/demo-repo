@@ -1,0 +1,129 @@
+name: Comment on Status Change
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"  # Every 10 minutes
+  workflow_dispatch:
+
+jobs:
+  check-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install @octokit/graphql
+
+      - name: Run status check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          node <<'EOF'
+          const { graphql } = require("@octokit/graphql");
+          const fs = require("fs");
+          const path = require("path");
+
+          const graphqlWithAuth = graphql.defaults({
+            headers: {
+              authorization: `token ${process.env.GH_TOKEN}`,
+            },
+          });
+
+          const owner = process.env.REPO.split('/')[0];
+          const repo = process.env.REPO.split('/')[1];
+          const projectNumber = 1; // ← Change to your project number
+
+          async function getProjectItems() {
+            const query = `
+              query($owner: String!, $repo: String!, $projectNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  projectV2(number: $projectNumber) {
+                    id
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue {
+                            id
+                            number
+                            title
+                          }
+                        }
+                        fieldValues(first: 10) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              field {
+                                name
+                              }
+                              name
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            const result = await graphqlWithAuth(query, {
+              owner,
+              repo,
+              projectNumber
+            });
+            return result.repository.projectV2.items.nodes;
+          }
+
+          const statusPath = path.join("status-tracking", "issue-status.json");
+          let oldStatus = {};
+          if (fs.existsSync(statusPath)) {
+            oldStatus = JSON.parse(fs.readFileSync(statusPath));
+          }
+
+          const newStatus = {};
+          const changes = [];
+
+          (async () => {
+            const items = await getProjectItems();
+            for (const item of items) {
+              const issue = item.content;
+              if (!issue) continue;
+              const statusField = item.fieldValues.nodes.find(n => n.field.name === "Status");
+              if (!statusField) continue;
+
+              const newVal = statusField.name;
+              newStatus[issue.number] = newVal;
+
+              if (oldStatus[issue.number] && oldStatus[issue.number] !== newVal) {
+                changes.push({
+                  number: issue.number,
+                  old: oldStatus[issue.number],
+                  new: newVal
+                });
+              }
+            }
+
+            fs.mkdirSync("status-tracking", { recursive: true });
+            fs.writeFileSync(statusPath, JSON.stringify(newStatus, null, 2));
+
+            for (const change of changes) {
+              const commentBody = `🔄 Issue status changed from \`${change.old}\` to \`${change.new}\`.`;
+              await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${change.number}/comments`, {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.GH_TOKEN}`,
+                  "Content-Type": "application/json",
+                  "User-Agent": "status-bot"
+                },
+                body: JSON.stringify({ body: commentBody })
+              });
+              console.log(`Commented on issue #${change.number}`);
+            }
+          })();
+          EOF
