@@ -1,26 +1,26 @@
-name: Comment on Status Change
+name: Track Project Status Changes
 
 on:
-  schedule:
-    - cron: "*/1 * * * *"
   workflow_dispatch:
+  schedule:
+    - cron: '*/1 * * * *'  # every 30 minutes
 
 jobs:
-  check-status:
+  track-status:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
       - name: Install dependencies
         run: npm install @octokit/graphql node-fetch
 
-      - name: Run status checker
+      - name: Run status change checker
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
