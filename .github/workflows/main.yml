@@ -1,0 +1,118 @@
+name: Comment on Issue When Status Changes
+
+on:
+  schedule:
+    - cron: '*/0.1 * * * *'  # every 1 minute
+  workflow_dispatch:
+
+jobs:
+  monitor-project-status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install node-fetch@2
+
+      - name: Monitor status field
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          PROJECT_NUMBER: 1
+          ORG: your-org-name      # <-- change this
+        run: |
+          node <<'EOF'
+          const fetch = require('node-fetch');
+          const fs = require('fs');
+
+          const GH_TOKEN = process.env.GH_TOKEN;
+          const ORG = process.env.ORG;
+          const PROJECT_NUMBER = process.env.PROJECT_NUMBER;
+
+          const headers = {
+            'Authorization': `bearer ${GH_TOKEN}`,
+            'Content-Type': 'application/json'
+          };
+
+          const query = `
+            query {
+              organization(login: "${ORG}") {
+                projectV2(number: ${PROJECT_NUMBER}) {
+                  items(first: 20) {
+                    nodes {
+                      id
+                      content {
+                        ... on Issue {
+                          number
+                          title
+                          url
+                        }
+                      }
+                      fieldValues(first: 10) {
+                        nodes {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            name
+                            field {
+                              ... on ProjectV2SingleSelectField {
+                                name
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          `;
+
+          fetch('https://api.github.com/graphql', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ query })
+          })
+          .then(res => res.json())
+          .then(async data => {
+            const items = data.data.organization.projectV2.items.nodes;
+            const lastStates = fs.existsSync('status-cache.json') ? JSON.parse(fs.readFileSync('status-cache.json')) : {};
+
+            for (const item of items) {
+              if (!item.content) continue;
+              const issueNumber = item.content.number;
+              const statusField = item.fieldValues.nodes.find(fv => fv.field?.name === 'Status');
+              const newStatus = statusField?.name || 'Unknown';
+
+              if (lastStates[issueNumber] !== newStatus) {
+                console.log(`Issue #${issueNumber} changed status to "${newStatus}"`);
+
+                const body = {
+                  body: `🔄 The issue status was updated to **${newStatus}** in the project board.`
+                };
+
+                await fetch(`https://api.github.com/repos/${ORG}/REPO_NAME/issues/${issueNumber}/comments`, {
+                  method: 'POST',
+                  headers: {
+                    Authorization: `Bearer ${GH_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github+json'
+                  },
+                  body: JSON.stringify(body)
+                });
+
+                lastStates[issueNumber] = newStatus;
+              }
+            }
+
+            fs.writeFileSync('status-cache.json', JSON.stringify(lastStates, null, 2));
+          })
+          .catch(err => {
+            console.error("Failed to fetch project info", err);
+          });
+          EOF
