@@ -20,12 +20,7 @@ const query = `
     repository(owner: $owner, name: $repo) {
      projectsV2(first: 20) {
         {
-        nodes 
-        {
-        id 
-        title
-        }
-            }
+        {nodes {id title} }
             fieldValues(first: 10) {
               nodes {
                 ... on ProjectV2ItemFieldSingleSelectValue {
@@ -40,6 +35,7 @@ const query = `
             }
           }
         }
+      }
       }
 `;
 
