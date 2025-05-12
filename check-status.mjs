@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 
 // Required environment variables
 const [owner, repo] = process.env.REPO.split("/");
-const projectNumber = "1"; // 🔁 Change this to your repo-level project number
+const projectNumber = 3; // 🔁 Change this to your repo-level project number
 const token = process.env.GH_TOKEN;
 
 // GitHub GraphQL client
