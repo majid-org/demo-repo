@@ -2,21 +2,22 @@ import { graphql as baseGraphql } from "@octokit/graphql";
 import fs from "fs";
 import fetch from "node-fetch";
 
-// Set up authenticated GraphQL client
+// Required environment variables
+const [owner, repo] = process.env.REPO.split("/");
+const projectNumber = 1; // 🔁 Change this to your repo-level project number
+const token = process.env.GH_TOKEN;
+
+// GitHub GraphQL client
 const graphql = baseGraphql.defaults({
   headers: {
-    authorization: `token ${process.env.GH_TOKEN}`,
+    authorization: `token ${token}`,
   },
 });
 
-// Extract repo info
-const [owner, repo] = process.env.REPO.split("/");
-const projectNumber = 1; // 📝 Set your org-level Project number here
-
-// GraphQL query to fetch project items and their status field
+// GraphQL query for repo-level project
 const query = `
-  query($owner: String!, $projectNumber: Int!) {
-    organization(login: $owner) {
+  query($owner: String!, $repo: String!, $projectNumber: Int!) {
+    repository(owner: $owner, name: $repo) {
       projectV2(number: $projectNumber) {
         items(first: 100) {
           nodes {
@@ -47,24 +48,23 @@ const query = `
 
 const statusPath = "status-tracking/issue-status.json";
 
-// Read previous status map from file
+// Load previous statuses
 const oldStatus = fs.existsSync(statusPath)
   ? JSON.parse(fs.readFileSync(statusPath, "utf-8"))
   : {};
-
 const newStatus = {};
 const changes = [];
 
-// Fetch data from GitHub API
+// Fetch current status data
 let result;
 try {
-  result = await graphql(query, { owner, projectNumber });
+  result = await graphql(query, { owner, repo, projectNumber });
 } catch (err) {
   console.error("❌ GraphQL Error:", JSON.stringify(err, null, 2));
   process.exit(1);
 }
 
-const items = result.organization.projectV2.items.nodes;
+const items = result.repository.projectV2.items.nodes;
 
 for (const item of items) {
   const issue = item.content;
@@ -87,18 +87,18 @@ for (const item of items) {
   }
 }
 
-// Save new status state
+// Save updated status data
 fs.mkdirSync("status-tracking", { recursive: true });
 fs.writeFileSync(statusPath, JSON.stringify(newStatus, null, 2));
 
-// Post comments for any detected changes
+// Add comments to issues with changed status
 for (const change of changes) {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/issues/${change.number}/comments`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.GH_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
