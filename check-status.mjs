@@ -9,10 +9,10 @@ const graphql = baseGraphql.defaults({
 });
 
 const [owner, repo] = process.env.REPO.split("/");
-const projectNumber = 1;
+const projectNumber = 1; // 🔁 Make sure this is your org-level project number
 
 const query = `
-  query($owner: String!, $repo: String!, $projectNumber: Int!) {
+  query($owner: String!, $projectNumber: Int!) {
     organization(login: $owner) {
       projectV2(number: $projectNumber) {
         items(first: 100) {
@@ -45,11 +45,15 @@ const oldStatus = fs.existsSync(statusPath)
 const newStatus = {};
 const changes = [];
 
-const result = await graphql(query, {
-  owner, // now refers to the org name
-  projectNumber
-});
-const items = result.repository.projectV2.items.nodes;
+let result;
+try {
+  result = await graphql(query, { owner, projectNumber });
+} catch (err) {
+  console.error("❌ GraphQL Error:", JSON.stringify(err, null, 2));
+  process.exit(1);
+}
+
+const items = result.organization.projectV2.items.nodes;
 
 for (const item of items) {
   const issue = item.content;
@@ -83,5 +87,5 @@ for (const change of changes) {
       body: `🔄 Issue status changed from \`${change.old}\` to \`${change.new}\`.`
     })
   });
-  console.log(`Commented on issue #${change.number}`);
+  console.log(`✅ Commented on issue #${change.number}`);
 }
