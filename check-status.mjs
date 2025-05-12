@@ -13,7 +13,7 @@ const projectNumber = 1;
 
 const query = `
   query($owner: String!, $repo: String!, $projectNumber: Int!) {
-    repository(owner: $owner, name: $repo) {
+    organization(login: $owner) {
       projectV2(number: $projectNumber) {
         items(first: 100) {
           nodes {
@@ -45,7 +45,10 @@ const oldStatus = fs.existsSync(statusPath)
 const newStatus = {};
 const changes = [];
 
-const result = await graphql(query, { owner, repo, projectNumber });
+const result = await graphql(query, {
+  owner, // now refers to the org name
+  projectNumber
+});
 const items = result.repository.projectV2.items.nodes;
 
 for (const item of items) {
