@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 
 // Required environment variables
 const [owner, repo] = process.env.REPO.split("/");
-const projectNumber = 3; // 🔁 Change this to your repo-level project number
+const projectNumber = 5; // 🔁 Change this to your repo-level project number
 const token = process.env.GH_TOKEN;
 
 // GitHub GraphQL client
@@ -18,14 +18,13 @@ const graphql = baseGraphql.defaults({
 const query = `
   query($owner: String!, $repo: String!, $projectNumber: Int!) {
     repository(owner: $owner, name: $repo) {
-      projectV2(number: $projectNumber) {
-        items(first: 100) {
-          nodes {
-            content {
-              ... on Issue {
-                number
-                title
-              }
+     projectsV2(first: 20) {
+        {
+        nodes 
+        {
+        id 
+        title
+        }
             }
             fieldValues(first: 10) {
               nodes {
