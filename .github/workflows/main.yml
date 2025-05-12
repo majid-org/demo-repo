@@ -23,7 +23,7 @@ jobs:
 
       - name: Monitor status field
         env:
-          GH_TOKEN: ${{ secrets.PROJECT_PAT }}
+          GH_TOKEN:  "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"
           PROJECT_NUMBER: 1
           ORG: majid-org      # <-- change this
         run: |
@@ -33,7 +33,7 @@ jobs:
 
           const GH_TOKEN = "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"
           //process.env.GH_TOKEN;
-          const ORG = process.env.ORG;
+          const ORG = "majid-org"
           const PROJECT_NUMBER = process.env.PROJECT_NUMBER;
 
           const headers = {
@@ -44,7 +44,7 @@ jobs:
           const query = `
             query {
               organization(login: "${ORG}") {
-                projectV2(number: ${PROJECT_NUMBER}) {
+                projectV2(first:20) {
                   items(first: 20) {
                     nodes {
                       id
